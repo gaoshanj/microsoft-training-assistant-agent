@@ -1,6 +1,10 @@
 """Microsoft 认证考试信息工具 — 返回常见微软认证的考试概览与备考建议。"""
 
 import json
+from typing import Annotated
+
+from agent_framework import tool
+from pydantic import Field
 
 _CERTIFICATIONS = {
     "AZ-900": {
@@ -64,7 +68,7 @@ _CERTIFICATIONS = {
         "name": "Azure DevOps Engineer Expert",
         "level": "高级",
         "target_audience": ["DevOps 工程师", "发布工程师", "SRE"],
-        "skills_measured": ["配置流程和沟通", "设计和实现源代码管理", "设计和实现生成与发布管道", "开发安全合规计划", "实现检测策略"],
+        "skills_measured": ["配置流程和沟通", "设计和实现源代码管理", "设计和实现生成和发布管道", "开发安全合规计划", "实现检测策略"],
         "exam_details": {
             "duration_minutes": 120,
             "question_count": "约 40-60 题",
@@ -176,17 +180,14 @@ _CERTIFICATIONS = {
 }
 
 
-def get_certification_info(exam_code: str) -> str:
-    """查询微软认证考试的详细信息。
-
-    当用户询问某门微软认证考试（如 AZ-900、AI-102）的详情、难度、考试范围、备考资料时调用此函数。
-
-    Args:
-        exam_code: 考试代码，例如 "AZ-900"、"AI-102"、"DP-203"。
-
-    Returns:
-        JSON 字符串，包含考试名称、级别、适合人群、考核技能、考试细节、推荐课程和链接。
-    """
+@tool(name="get_certification_info", description="查询微软认证考试的详细信息。")
+def get_certification_info(
+    exam_code: Annotated[
+        str,
+        Field(description="考试代码，例如 AZ-900、AI-102、DP-203"),
+    ],
+) -> str:
+    """查询微软认证考试的详细信息。"""
     key = exam_code.upper().strip()
     cert = _CERTIFICATIONS.get(key)
     if not cert:
@@ -205,18 +206,18 @@ def get_certification_info(exam_code: str) -> str:
     return json.dumps(result, ensure_ascii=False, indent=2)
 
 
-def get_exam_preparation_tips(exam_code: str, weeks_available: int) -> str:
-    """根据考试代码和可用备考周数，生成个性化备考计划。
-
-    当用户准备参加微软认证考试并需要备考建议时调用此函数。
-
-    Args:
-        exam_code: 考试代码，例如 "AZ-900"、"AI-102"。
-        weeks_available: 可用于备考的周数（整数）。
-
-    Returns:
-        JSON 字符串，包含备考计划、每周任务、推荐资源和备考技巧。
-    """
+@tool(name="get_exam_preparation_tips", description="根据考试代码和可用备考周数，生成个性化备考计划。")
+def get_exam_preparation_tips(
+    exam_code: Annotated[
+        str,
+        Field(description="考试代码，例如 AZ-900、AI-102"),
+    ],
+    weeks_available: Annotated[
+        int,
+        Field(description="可用于备考的周数"),
+    ],
+) -> str:
+    """根据考试代码和可用备考周数，生成个性化备考计划。"""
     key = exam_code.upper().strip()
     cert = _CERTIFICATIONS.get(key)
     if not cert:
@@ -253,7 +254,6 @@ def get_exam_preparation_tips(exam_code: str, weeks_available: int) -> str:
             }
         )
 
-    # 最后一周追加模拟考试
     weekly_plan[-1]["tasks"].append("完成 1-2 套官方模拟考试，查漏补缺")
 
     return json.dumps(

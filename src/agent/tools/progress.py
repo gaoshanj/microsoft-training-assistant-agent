@@ -3,6 +3,10 @@
 import json
 import os
 from datetime import datetime, timezone
+from typing import Annotated
+
+from agent_framework import tool
+from pydantic import Field
 
 DEFAULT_DB_PATH = "learning_progress.json"
 
@@ -19,20 +23,26 @@ def _save_db(data: dict, path: str = DEFAULT_DB_PATH) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def record_learning_progress(user_id: str, topic: str, status: str, notes: str = "") -> str:
-    """记录学员某项学习内容的进度。
-
-    当用户希望保存学习进度、课程完成状态或学习笔记时调用此函数。
-
-    Args:
-        user_id: 学员唯一标识，例如邮箱前缀、工号或昵称。
-        topic: 学习主题，例如 "AZ-900 云计算概念"、"Azure Functions 入门"。
-        status: 学习状态，"未开始"、"进行中"、"已完成"。
-        notes: 可选的学习笔记或心得。
-
-    Returns:
-        JSON 字符串，确认记录结果。
-    """
+@tool(name="record_learning_progress", description="记录学员某项学习内容的进度。")
+def record_learning_progress(
+    user_id: Annotated[
+        str,
+        Field(description="学员唯一标识，例如邮箱前缀、工号或昵称"),
+    ],
+    topic: Annotated[
+        str,
+        Field(description="学习主题，例如 'AZ-900 云计算概念'、'Azure Functions 入门'"),
+    ],
+    status: Annotated[
+        str,
+        Field(description="学习状态：未开始、进行中、已完成"),
+    ],
+    notes: Annotated[
+        str,
+        Field(description="可选的学习笔记或心得"),
+    ] = "",
+) -> str:
+    """记录学员某项学习内容的进度。"""
     db = _load_db()
     user_record = db.setdefault(user_id, {"records": []})
 
@@ -43,7 +53,6 @@ def record_learning_progress(user_id: str, topic: str, status: str, notes: str =
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    # 更新已有主题
     existing = next((r for r in user_record["records"] if r["topic"] == topic), None)
     if existing:
         existing.update(entry)
@@ -58,17 +67,14 @@ def record_learning_progress(user_id: str, topic: str, status: str, notes: str =
     )
 
 
-def get_learning_progress(user_id: str) -> str:
-    """查询某位学员的学习进度。
-
-    当用户希望查看自己或他人的学习记录、学习状态时调用此函数。
-
-    Args:
-        user_id: 学员唯一标识。
-
-    Returns:
-        JSON 字符串，包含学员的学习记录、完成率统计等。
-    """
+@tool(name="get_learning_progress", description="查询某位学员的学习进度。")
+def get_learning_progress(
+    user_id: Annotated[
+        str,
+        Field(description="学员唯一标识"),
+    ],
+) -> str:
+    """查询某位学员的学习进度。"""
     db = _load_db()
     user_record = db.get(user_id)
     if not user_record:
@@ -97,17 +103,14 @@ def get_learning_progress(user_id: str) -> str:
     )
 
 
-def generate_personalized_study_plan(user_id: str) -> str:
-    """根据学员当前进度生成个性化下一步学习建议。
-
-    当用户希望基于已有进度获得下一步学习建议时调用此函数。
-
-    Args:
-        user_id: 学员唯一标识。
-
-    Returns:
-        JSON 字符串，包含基于进度的推荐下一步行动。
-    """
+@tool(name="generate_personalized_study_plan", description="根据学员当前进度生成个性化下一步学习建议。")
+def generate_personalized_study_plan(
+    user_id: Annotated[
+        str,
+        Field(description="学员唯一标识"),
+    ],
+) -> str:
+    """根据学员当前进度生成个性化下一步学习建议。"""
     db = _load_db()
     user_record = db.get(user_id)
     if not user_record or not user_record.get("records"):

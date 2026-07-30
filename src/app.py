@@ -1,5 +1,6 @@
 """Microsoft Training Assistant 的命令行交互入口。"""
 
+import asyncio
 import sys
 
 from rich.console import Console
@@ -9,12 +10,12 @@ from rich.panel import Panel
 from src.agent.training_agent import create_training_agent
 
 
-def main() -> None:
+async def main() -> None:
     console = Console()
     console.print(
         Panel.fit(
             "[bold cyan]Microsoft Training Assistant[/bold cyan]\n"
-            "基于 Azure AI Foundry Agent Service 的微软培训助手\n"
+            "基于 Microsoft Agent Framework 的微软培训助手\n"
             "输入问题开始对话，输入 [bold yellow]exit[/bold yellow] 或 [bold yellow]quit[/bold yellow] 退出。",
             title="欢迎使用",
         )
@@ -26,8 +27,8 @@ def main() -> None:
         console.print(f"[red]初始化智能体失败：{exc}[/red]")
         sys.exit(1)
 
-    thread_id = agent.create_thread()
-    console.print(f"[dim]会话线程已创建：{thread_id}[/dim]\n")
+    session = agent.create_session()
+    console.print("[dim]会话已创建，开始多轮对话。[/dim]\n")
 
     try:
         while True:
@@ -39,13 +40,13 @@ def main() -> None:
                 break
 
             try:
-                response = agent.send_message(thread_id, user_input)
+                response = await agent.send_message(session, user_input)
                 console.print(Markdown(f"**助手：** {response}"))
             except Exception as exc:  # noqa: BLE001
                 console.print(f"[red]请求失败：{exc}[/red]")
     finally:
-        agent.close()
+        await agent.close()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -1,6 +1,6 @@
 # Microsoft Training Assistant Agent
 
-基于 **Azure AI Foundry Agent Service** 与 **Microsoft Agent Framework** 构建的微软培训助手。它可以回答微软技术问题、搜索 Microsoft Learn 培训资源、推荐学习路径、提供认证考试信息，并跟踪学员学习进度。
+基于 **Microsoft Agent Framework** 与 **Azure AI Foundry** 构建的微软培训助手。它可以回答微软技术问题、搜索 Microsoft Learn 培训资源、推荐学习路径、提供认证考试信息，并跟踪学员学习进度。
 
 ---
 
@@ -17,8 +17,10 @@
 ## 技术栈
 
 - **Python 3.10+**
-- **Azure AI Projects** (`azure-ai-projects`)
+- **Microsoft Agent Framework** (`agent-framework`)
+- **Azure AI Foundry Chat Client** (`agent_framework.foundry.FoundryChatClient`)
 - **Azure Identity** (`azure-identity`，支持 DefaultAzureCredential / Azure CLI / Managed Identity）
+- **Pydantic** 用于工具参数描述
 - **Rich** 用于命令行美化
 
 ---
@@ -56,14 +58,11 @@ cp .env.example .env
 
 ```env
 # Azure AI Foundry 项目端点
-# 格式：https://<resource-name>.services.ai.azure.com/api/projects/<project-name>
-PROJECT_ENDPOINT=https://your-resource.services.ai.azure.com/api/projects/your-project
+# 格式：https://<resource-name>.services.ai.azure.com
+PROJECT_ENDPOINT=https://your-resource.services.ai.azure.com
 
 # 模型部署名称
 MODEL_DEPLOYMENT_NAME=gpt-4o
-
-# （可选）复用已有智能体 ID
-# AGENT_ID=asst_xxxxxxxxxxxxxxxxxx
 ```
 
 ### 4. 登录 Azure

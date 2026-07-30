@@ -1,4 +1,4 @@
-"""Microsoft Training Assistant Agent — 基于 Azure AI Foundry Agent Service 的培训助手。
+"""Microsoft Training Assistant Agent — 基于 Microsoft Agent Framework 的培训助手。
 
 主要能力：
 - 回答微软技术问题（Azure、M365、Power Platform、Security、AI 等）
@@ -9,12 +9,10 @@
 
 from __future__ import annotations
 
-import json
 import os
-from typing import Any
 
-from azure.ai.projects import AIProjectClient
-from azure.ai.projects.models import FunctionTool, ToolSet
+from agent_framework import Agent
+from agent_framework.foundry import FoundryChatClient
 from azure.identity import DefaultAzureCredential
 from dotenv import load_dotenv
 
@@ -30,7 +28,6 @@ load_dotenv()
 
 PROJECT_ENDPOINT = os.getenv("PROJECT_ENDPOINT")
 MODEL_DEPLOYMENT_NAME = os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-4o")
-AGENT_ID = os.getenv("AGENT_ID")
 
 _SYSTEM_INSTRUCTION = """你是一名专业的微软培训助手，擅长帮助学员学习微软云技术、完成认证考试并规划职业发展。
 
@@ -59,82 +56,44 @@ _SYSTEM_INSTRUCTION = """你是一名专业的微软培训助手，擅长帮助�
 """
 
 
-_USER_FUNCTIONS = {
-    "search_microsoft_learn": search_microsoft_learn,
-    "get_learning_path_recommendation": get_learning_path_recommendation,
-    "get_certification_info": get_certification_info,
-    "get_exam_preparation_tips": get_exam_preparation_tips,
-    "record_learning_progress": record_learning_progress,
-    "get_learning_progress": get_learning_progress,
-    "generate_personalized_study_plan": generate_personalized_study_plan,
-}
-
-
 class TrainingAgent:
-    """包装 Azure AI Foundry Agent Service 的培训助手客户端。"""
+    """包装 Microsoft Agent Framework 的培训助手客户端。"""
 
     def __init__(self) -> None:
         if not PROJECT_ENDPOINT:
             raise RuntimeError("环境变量 PROJECT_ENDPOINT 未设置。请参照 .env.example 配置。")
 
-        self.project_client = AIProjectClient(
-            endpoint=PROJECT_ENDPOINT,
-            credential=DefaultAzureCredential(),
-        )
-
-        function_tool = FunctionTool(_USER_FUNCTIONS)
-        self.toolset = ToolSet()
-        self.toolset.add(function_tool)
-
-        # 支持复用已有 agent
-        if AGENT_ID:
-            self.agent = self.project_client.agents.get_agent(AGENT_ID)
-        else:
-            self.agent = self.project_client.agents.create_agent(
+        self.agent = Agent(
+            client=FoundryChatClient(
+                project_endpoint=PROJECT_ENDPOINT,
                 model=MODEL_DEPLOYMENT_NAME,
-                name="microsoft-training-assistant",
-                instructions=_SYSTEM_INSTRUCTION,
-                toolset=self.toolset,
-            )
+                credential=DefaultAzureCredential(),
+            ),
+            name="microsoft-training-assistant",
+            instructions=_SYSTEM_INSTRUCTION,
+            tools=[
+                search_microsoft_learn,
+                get_learning_path_recommendation,
+                get_certification_info,
+                get_exam_preparation_tips,
+                record_learning_progress,
+                get_learning_progress,
+                generate_personalized_study_plan,
+            ],
+        )
 
-        self.project_client.agents.enable_auto_function_calls(toolset=self.toolset)
+    def create_session(self):
+        """创建一个新的会话对象，用于维护多轮对话上下文。"""
+        return self.agent.create_session()
 
-    def create_thread(self) -> str:
-        """创建一个新的对话线程，返回 thread_id。"""
-        thread = self.project_client.agents.threads.create()
-        return thread.id
-
-    def send_message(self, thread_id: str, user_message: str) -> str:
+    async def send_message(self, session, user_message: str) -> str:
         """发送用户消息并返回助手的回复文本。"""
-        self.project_client.agents.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content=user_message,
-        )
+        result = await self.agent.run(user_message, session=session)
+        return result.text if hasattr(result, "text") else str(result)
 
-        run = self.project_client.agents.runs.create_and_process(
-            thread_id=thread_id,
-            agent_id=self.agent.id,
-            toolset=self.toolset,
-        )
-
-        if run.status == "failed":
-            error = run.last_error or "未知错误"
-            raise RuntimeError(f"Agent run failed: {error}")
-
-        # 取最后一条 assistant 文本消息
-        messages = list(self.project_client.agents.messages.list(thread_id=thread_id).data)
-        for message in reversed(messages):
-            if message.role == "assistant" and message.content:
-                for item in message.content:
-                    if item.type == "text":
-                        return item.text.value
-
-        return "（助手未返回文本内容）"
-
-    def close(self) -> None:
+    async def close(self) -> None:
         """关闭底层 HTTP 客户端。"""
-        self.project_client.close()
+        await self.agent.close()
 
 
 def create_training_agent() -> TrainingAgent:
@@ -142,15 +101,17 @@ def create_training_agent() -> TrainingAgent:
     return TrainingAgent()
 
 
-def quick_ask(question: str) -> str:
+async def quick_ask(question: str) -> str:
     """一次性提问的便捷函数，不保留多轮对话上下文。"""
     agent = create_training_agent()
     try:
-        thread_id = agent.create_thread()
-        return agent.send_message(thread_id, question)
+        result = await agent.agent.run(question)
+        return result.text if hasattr(result, "text") else str(result)
     finally:
-        agent.close()
+        await agent.close()
 
 
 if __name__ == "__main__":
-    print(quick_ask("请介绍 AZ-900 考试，并给我一份 4 周备考计划。"))
+    import asyncio
+
+    print(asyncio.run(quick_ask("请介绍 AZ-900 考试，并给我一份 4 周备考计划。")))
