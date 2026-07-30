@@ -232,24 +232,33 @@ def get_exam_preparation_tips(
 
     skills = cert.get("skills_measured", [])
     num_skills = len(skills) if skills else 4
-    skills_per_week = max(1, num_skills // weeks_available)
+    effective_weeks = min(weeks_available, num_skills)
+    skills_per_week = max(1, num_skills // effective_weeks) if effective_weeks > 0 else 1
 
     weekly_plan: list = []
     for week in range(1, weeks_available + 1):
-        start = (week - 1) * skills_per_week
-        end = start + skills_per_week
-        if week == weeks_available:
-            end = num_skills
-        week_skills = skills[start:end] if skills else ["复习上周内容"]
+        if week <= effective_weeks:
+            start = (week - 1) * skills_per_week
+            end = start + skills_per_week
+            if week == effective_weeks:
+                end = num_skills
+            week_skills = skills[start:end] if skills else ["复习上周内容"]
+            tasks = [
+                f"学习/复习: {', '.join(week_skills)}",
+                "完成对应 Microsoft Learn 模块与动手实验",
+                "记录错题与知识点盲区",
+            ]
+        else:
+            tasks = [
+                "复习已学技能点，强化记忆",
+                "完成 Microsoft Learn 复习模块与动手实验",
+                "刷题练习，查漏补缺",
+            ]
         weekly_plan.append(
             {
                 "week": week,
                 "focus": f"第 {week} 周",
-                "tasks": [
-                    f"学习/复习: {', '.join(week_skills)}",
-                    "完成对应 Microsoft Learn 模块与动手实验",
-                    "记录错题与知识点盲区",
-                ],
+                "tasks": tasks,
                 "hours_per_week": "建议 6-10 小时" if cert.get("level") != "入门" else "建议 3-6 小时",
             }
         )

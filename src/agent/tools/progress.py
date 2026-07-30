@@ -1,6 +1,7 @@
 """学员进度跟踪工具 — 用本地 JSON 文件保存简单的学习记录。"""
 
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from typing import Annotated
@@ -9,13 +10,18 @@ from agent_framework import tool
 from pydantic import Field
 
 DEFAULT_DB_PATH = "learning_progress.json"
+logger = logging.getLogger(__name__)
 
 
 def _load_db(path: str = DEFAULT_DB_PATH) -> dict:
     if not os.path.exists(path):
         return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Progress file %s is unreadable or corrupted (%s). Falling back to empty database.", path, exc)
+        return {}
 
 
 def _save_db(data: dict, path: str = DEFAULT_DB_PATH) -> None:

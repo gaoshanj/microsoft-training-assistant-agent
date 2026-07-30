@@ -2,6 +2,8 @@
 
 基于 **Microsoft Agent Framework** 与 **Azure AI Foundry** 构建的微软培训助手。它可以回答微软技术问题、搜索 Microsoft Learn 培训资源、推荐学习路径、提供认证考试信息，并跟踪学员学习进度。
 
+> 本项目的 Agent 封装位于 [`src/agent/training_agent.py`](src/agent/training_agent.py)，其中从 `agent_framework` 导入 `Agent`、从 `agent_framework.foundry` 导入 `FoundryChatClient`，并通过 `agent-framework>=0.1.0` 依赖引入（见 [`requirements.txt`](requirements.txt)）。
+
 ---
 
 ## 功能特性
